@@ -20,6 +20,8 @@
 
 # production
 /build
+grant-iam.ps1
+push-secrets.ps1
 
 # misc
 .DS_Store

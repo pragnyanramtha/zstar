@@ -1,0 +1,9 @@
+.git
+node_modules
+.next
+.env
+.env.local
+*.log
+coverage
+push-secrets.ps1
+grant-iam.ps1
