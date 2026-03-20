@@ -1,6 +1,13 @@
 /**
  * Shared Google GenAI client singleton.
- * Avoids re-instantiating the client on every API call.
+ *
+ * EFFICIENCY: Avoids re-instantiating GoogleGenAI (which reads env vars and
+ * initialises HTTP configuration) on every Gemini call. The singleton is
+ * created once and reused across intake parsing, extraction, and live calls.
+ *
+ * SECURITY: `requireGeminiEnv()` throws at startup if GEMINI_API_KEY is missing —
+ * this is intentional fail-fast behaviour so misconfigured deployments surface
+ * immediately rather than failing silently on the first user request.
  */
 import { GoogleGenAI } from "@google/genai";
 

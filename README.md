@@ -1,98 +1,191 @@
-# CallAgent
+# Z-star
 
-AI-powered phone investigation assistant that calls contacts, investigates requirements, streams live progress/transcripts, and recommends the best option with action items.
+**AI-powered phone investigation assistant** — calls contacts, investigates your requirement in real-time, streams live transcripts, and delivers ranked recommendations with action items.
+
+Built on **Google Gemini Live API** + **LiveKit SIP** + **Next.js**, deployable to **Google Cloud Run**.
+
+---
+
+## How it works
+
+```
+You type a requirement + contacts
+         ↓
+Gemini parses your input (intake model)
+         ↓
+Zeppy calls each contact via LiveKit SIP + Twilio
+         ↓
+Gemini Live API handles the real-time voice conversation
+         ↓
+Transcripts stream live to your browser over SSE
+         ↓
+Gemini extracts structured findings from each call
+         ↓
+Ranked recommendations + action items delivered
+```
+
+---
+
+## Gemini Services Used
+
+### 1. Gemini Live API (Real-time Voice)
+The outbound phone calls are powered by Gemini's native-audio realtime model via the LiveKit Agents SDK. The agent speaks naturally in the contact's language (English, Hindi, Kannada, Tamil) and listens for responses — no text-to-speech middleware required.
+
+```
+GEMINI_REALTIME_MODEL=gemini-2.5-flash-native-audio-preview-12-2025
+GEMINI_REALTIME_VOICE=Puck
+```
+
+→ Full details: [`docs/gemini-integration.md`](docs/gemini-integration.md)
+
+### 2. Gemini generateContent (JSON mode)
+Used for two structured tasks:
+- **Intake parsing** — converts free-form user input into a structured investigation plan
+- **Call extraction** — scores each call transcript and extracts summary, price, availability, confidence
+
+```
+GEMINI_INTAKE_MODEL=gemini-2.0-flash
+```
+
+---
 
 ## Tech Stack
 
-- Next.js 16 App Router + shadcn/ui
-- Next.js API routes (Node runtime)
-- SSE for live updates
-- LiveKit SIP outbound calls (Twilio SIP trunk setup expected)
-- Google Gemini Live API + structured extraction
-- PostgreSQL (Docker) + Prisma
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16 App Router, React 19, Tailwind CSS 4, shadcn/ui |
+| Backend | Next.js API Routes (Node.js runtime), SSE |
+| Voice AI | Gemini Live API via LiveKit Agents SDK |
+| Telephony | LiveKit SIP + Twilio SIP Trunk |
+| Database | PostgreSQL + Prisma ORM |
+| Infrastructure | Google Cloud Run + Cloud SQL + GCS (recordings) |
+
+---
 
 ## Local Setup
 
-1) Install dependencies
-
+### 1. Install dependencies
 ```bash
 npm install
 ```
 
-2) Configure environment variables
-
+### 2. Configure environment
 ```bash
 cp .env.example .env
 ```
 
-Fill all required telephony and AI keys in `.env`:
-- `LIVEKIT_URL`
-- `LIVEKIT_API_KEY`
-- `LIVEKIT_API_SECRET`
-- `LIVEKIT_AGENT_NAME` (agent worker dispatch target)
-- `LIVEKIT_SIP_TRUNK_ID`
-- `TWILIO_ACCOUNT_SID`
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_SIP_TRUNK_SID`
-- `GEMINI_API_KEY`
-- `GEMINI_REALTIME_MODEL` (defaults to native audio realtime model)
-- `GEMINI_REALTIME_VOICE`
-- `CALL_SESSION_TIMEOUT_SECONDS`
-- `CALLAGENT_LOG_LEVEL` (optional: `debug`, `info`, `warn`, `error`; default `info`)
+Fill in `.env`:
 
-Optional recording vars (LiveKit Egress -> GCP):
-- `RECORDING_PROVIDER` (`gcp`)
-- `RECORDING_GCP_BUCKET`
-- `RECORDING_GCP_PREFIX` (optional, defaults to `zeppy/recordings`)
-- `RECORDING_GCP_CREDENTIALS_B64` (base64 of service-account JSON file)
+```env
+# Database
+DATABASE_URL=postgresql://...
 
-3) Start Postgres and migrate
+# LiveKit
+LIVEKIT_URL=wss://your-livekit-cloud.livekit.cloud
+LIVEKIT_API_KEY=...
+LIVEKIT_API_SECRET=...
+LIVEKIT_SIP_TRUNK_ID=...
+LIVEKIT_AGENT_NAME=zeppy-telephony-agent
 
+# Twilio (for SIP trunk)
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_SIP_TRUNK_SID=...
+
+# Gemini
+GEMINI_API_KEY=...
+GEMINI_INTAKE_MODEL=gemini-2.0-flash
+GEMINI_REALTIME_MODEL=gemini-2.5-flash-native-audio-preview-12-2025
+GEMINI_REALTIME_VOICE=Puck
+
+# Call settings
+CALL_SESSION_TIMEOUT_SECONDS=120
+
+# GCP recordings (optional)
+RECORDING_PROVIDER=gcp
+RECORDING_GCP_BUCKET=my-recordings-bucket
+RECORDING_GCP_CREDENTIALS_B64=<base64 of service-account.json>
+```
+
+### 3. Start database
 ```bash
 npm run db:up
 npm run db:migrate
 npm run db:generate
 ```
 
-4) Run the app + voice agent worker
-
+### 4. Run
 ```bash
-npm run dev:all
+npm run dev:all       # Next.js app + LiveKit agent worker
 ```
 
 Open `http://localhost:3000`.
 
-## Product Flow
-
-1. Screen 1: Enter one free-form input (requirement + contacts + optional questions), review extracted details, then proceed
-2. Screen 2: Watch live call progress and transcript stream
-3. Screen 3: View ranked recommendations + action items
+---
 
 ## Scripts
 
-- `npm run dev` - start development server
-- `npm run dev:agent` - start LiveKit telephony agent worker
-- `npm run dev:all` - run app + agent worker together
-- `npm run lint` - lint checks
-- `npm run test` - run tests
-- `npm run build` - production build validation
-- `npm run db:up` / `npm run db:down` - start/stop local Postgres
-- `npm run db:migrate` - run Prisma migration
-- `npm run db:generate` - generate Prisma client
+| Command | Description |
+|---------|-------------|
+| `npm run dev:all` | App + agent worker (recommended for local dev) |
+| `npm run dev:app` | Next.js only |
+| `npm run dev:agent` | LiveKit agent worker only |
+| `npm run test` | Run test suite (Vitest) |
+| `npm run lint` | ESLint |
+| `npm run build` | Production build |
+| `npm run db:up` | Start local Postgres via Docker |
+| `npm run db:migrate` | Run Prisma migrations |
+| `npm run db:generate` | Regenerate Prisma client |
+
+---
 
 ## API Endpoints
 
-- `POST /api/investigations` - create investigation (supports free-form input parsing via Gemini)
-- `POST /api/intake/parse` - parse free-form text and preview extracted requirement/contacts/questions
-- `POST /api/investigations/:id/start` - start orchestration
-- `GET /api/investigations/:id/events` - SSE live stream
-- `GET /api/investigations/:id/results` - final ranked output
-- `GET /api/recordings/:callId` - audio stream proxy for recorded calls
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/investigations` | Create investigation (rate-limited: 30/min) |
+| `POST` | `/api/intake/parse` | Preview parsed input before submitting |
+| `POST` | `/api/investigations/:id/start` | Start calls |
+| `GET` | `/api/investigations/:id/events` | SSE live stream |
+| `GET` | `/api/investigations/:id/results` | Final ranked results |
+| `GET` | `/api/recordings/:callId` | Audio recording stream |
+| `GET` | `/api/health` | Cloud Run liveness probe |
+
+---
+
+## Security
+
+- **Security headers** on all routes: CSP, HSTS, X-Frame-Options, nosniff, Permissions-Policy
+- **Rate limiting** on investigation creation: 30 requests/min per IP
+- **Zod validation** on all API inputs
+- **Env validation** at startup — missing keys throw immediately
+- **SIP transport security**: TLS + SRTP enforced between LiveKit and Twilio
+
+---
+
+## Testing
+
+```bash
+npm test                 # run all tests
+npm run test:watch       # watch mode
+```
+
+Tests live in `src/**/` colocated with source files. Pre-commit hook runs tests automatically on every commit.
+
+---
+
+## Deployment
+
+→ See [`docs/cloud-run.md`](docs/cloud-run.md) for Cloud Run deployment.  
+→ See [`docs/architecture.md`](docs/architecture.md) for system architecture.  
+→ See [`docs/gemini-integration.md`](docs/gemini-integration.md) for Gemini API details.
+
+---
 
 ## Notes
 
-- Calls run with max concurrency of 3.
-- Retry with exponential backoff is enabled for transient call/session failures.
-- Telephony voice path requires the LiveKit agent worker to be running (`npm run dev:agent` or `npm run dev:all`).
-- Secure trunking (TLS + SRTP) must be enabled between Twilio and LiveKit for stable audio.
-- Recording uses LiveKit Egress. On LiveKit Cloud, provide a cloud storage target (GCP in this setup).
+- Max 3 concurrent calls per investigation (configurable with `pLimit`)
+- Exponential backoff retry on transient call/network failures
+- Secure trunking (TLS + SRTP) required between Twilio and LiveKit
+- Recording via LiveKit Egress → GCP Cloud Storage (MP3)
+- The LiveKit agent worker must be running for calls to connect

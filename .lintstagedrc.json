@@ -1,0 +1,9 @@
+{
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "tsc --noEmit --skipLibCheck"
+    ],
+    "*.{ts,tsx,json,md}": "prettier --write --ignore-unknown"
+  }
+}

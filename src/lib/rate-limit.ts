@@ -1,13 +1,21 @@
 /**
- * In-process token-bucket rate limiter.
- * Works in Cloud Run / serverless as long as requests are handled within the
- * same process instance. For multi-instance deployments, replace with a
- * Redis-backed counter (e.g. Upstash).
+ * In-process token-bucket rate limiter for API endpoints.
  *
- * Usage:
- *   const limiter = createRateLimiter({ windowMs: 60_000, maxRequests: 20 });
- *   const result = limiter.check(identifier);
- *   if (!result.allowed) return new Response("Too many requests", { status: 429 });
+ * SECURITY: Rate limiting prevents a single client from:
+ * - Burning through Gemini API quota (each investigation = multiple AI calls)
+ * - Abusing LiveKit SIP trunk credits (each call costs money)
+ * - Brute-forcing or flooding the investigation creation endpoint
+ *
+ * Implementation: token bucket per IP with a sliding window.
+ * Bucket entries are pruned on each check to prevent unbounded memory growth.
+ *
+ * CLOUD RUN NOTE: This is in-process state. Each Cloud Run instance has its own
+ * limiter. For multi-instance deployments, replace `buckets` Map with an
+ * Upstash Redis counter:
+ *   https://upstash.com/docs/redis/sdks/ratelimit-ts/overview
+ *
+ * Current limits (see investigationLimiter export):
+ *   - 30 investigation creations per IP per minute
  */
 
 type RateLimiterOptions = {

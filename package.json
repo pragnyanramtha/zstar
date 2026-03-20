@@ -16,7 +16,8 @@
     "db:down": "docker compose down",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "prepare": "husky"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
@@ -48,6 +49,8 @@
     "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prisma": "^7.4.0",
     "shadcn": "^3.8.4",
     "tailwindcss": "^4",

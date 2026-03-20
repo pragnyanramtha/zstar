@@ -10,6 +10,9 @@ import { createInvestigationSchema } from "@/lib/validation/investigation";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  // SECURITY: Rate limit by IP to prevent API abuse.
+  // x-forwarded-for is set by Cloud Run's load balancer — first IP is the real client.
+  // Requests over 30/min per IP receive a 429 with Retry-After header.
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const rateLimit = investigationLimiter.check(ip);
   if (!rateLimit.allowed) {
